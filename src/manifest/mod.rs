@@ -242,32 +242,15 @@ impl Crate {
     fn check_wasm_pack_latest_version() -> Result<Crate, Error> {
         let url = "https://crates.io/api/v1/crates/wasm-pack";
 
-        let mut easy = easy::Easy2::new(Collector(Vec::new()));
+        let agent = ureq::builder()
+            .user_agent(&format!(
+                "wasm-pack/{} ({})",
+                WASM_PACK_VERSION.unwrap_or("unknown"),
+                WASM_PACK_REPO_URL
+            ))
+            .build();
 
-        easy.useragent(&format!(
-            "wasm-pack/{} ({})",
-            WASM_PACK_VERSION.unwrap_or_else(|| "unknown"),
-            WASM_PACK_REPO_URL
-        ))?;
-
-        easy.url(url)?;
-        easy.get(true)?;
-        easy.perform()?;
-
-        let status_code = easy.response_code()?;
-
-        if 200 <= status_code && status_code < 300 {
-            let contents = easy.get_ref();
-            let result = String::from_utf8_lossy(&contents.0);
-
-            Ok(serde_json::from_str(result.into_owned().as_str())?)
-        } else {
-            bail!(
-                "Received a bad HTTP status code ({}) when checking for newer wasm-pack version at: {}",
-                status_code,
-                url
-            )
-        }
+        Ok(agent.get(url).call()?.into_json()?)
     }
 }
 
